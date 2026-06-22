@@ -1,0 +1,15 @@
+# Python virtual environment (created by setup.sh)
+.venv/
+__pycache__/
+*.pyc
+
+# Node
+node_modules/
+
+# Runtime artifacts
+*.log
+*.mp3
+
+# OS
+.DS_Store
+Thumbs.db

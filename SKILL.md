@@ -1,0 +1,79 @@
+---
+name: voice-reply
+description: Speak a short, context-aware voice reply for agent work — an instant acknowledgement when the user submits, and a concise spoken result/answer when the turn finishes. Works for both Claude Code and Codex via their hook systems, with local Edge TTS playback. Use when adding spoken acknowledgements/announcements, reading a result aloud, or wiring voice notifications into an agent workflow.
+---
+
+# Voice Reply
+
+## Overview
+
+Voice Reply gives a coding agent a short spoken voice:
+
+- **Opening cue** — the instant the user submits, a hook plays a quick, type-aware acknowledgement (question → "我看看", instruction → "好，这就做", uncertain → "收到"). It fires before the model has read the message, so it can only acknowledge, never answer.
+- **Result reply** — when the turn finishes, the model's own one-line summary (status + core info + next action) is spoken. This is the "real" reply and can contain the actual answer (对/错, a fact, "改好了，记得重启").
+
+Playback is local Edge TTS + `afplay`, fired in the background so hooks return in ~200ms and never block the agent.
+
+## Layout
+
+```
+voice-reply/
+  SKILL.md
+  setup.sh             # one-command install (venv, cache, hooks)
+  uninstall.sh         # remove hooks, restore backups
+  test.sh              # dry-run regression checks
+  scripts/
+    speak.mjs          # core: text → Edge TTS mp3 → cross-platform player
+    claude-hook.mjs    # Claude Code hook entry (opening cue + result marker)
+    codex-hook.mjs     # Codex hook entry (opening + keyword-scored summary)
+    codex-notify.mjs   # Codex `notify` fallback (coarse turn-ended)
+  agents/openai.yaml
+  .venv/               # created by setup.sh, gitignored
+```
+
+Config + cache live in `~/.voice-reply/`:
+
+```
+~/.voice-reply/
+  config.json   # voice / rate / volume (read by speak.mjs)
+  hooks.json    # toggles + fixed texts (read by codex-hook.mjs)
+  cache/        # pre-synthesized opening cue mp3s, named opening-<type>-<voice>.mp3
+```
+
+## Manual playback
+
+Run from the skill directory (`$SKILL` = wherever this skill is installed):
+
+```bash
+node "$SKILL/scripts/speak.mjs" done
+node "$SKILL/scripts/speak.mjs" text --text "改好了，记得重启。" --full
+node "$SKILL/scripts/speak.mjs" summary --text "修复了参数解析并通过校验。"
+```
+
+`speak.mjs` resolves Edge TTS from the project `.venv` (created by `setup.sh`) if `edge-tts` is not on PATH, and auto-detects a player (`afplay`/`ffplay`/`mpv`/`mpg123`). Use `--dry-run` to preview text and dependency status without audio. Voice/rate/volume can be overridden by `--voice/--rate/--volume`, by env vars `VOICE_REPLY_VOICE/RATE/VOLUME`, or by `~/.voice-reply/config.json`.
+
+## Automatic hooks
+
+**Claude Code** — `~/.claude/settings.json` registers `claude-hook.mjs` on `UserPromptSubmit` (opening cue) and `Stop` (result reply). On Stop it reads the transcript, extracts the last `<<voice: ...>>` marker the model wrote, and speaks it; if absent it falls back to keyword scoring via `codex-hook.mjs`.
+
+**Codex** — `~/.codex/hooks.json` registers `codex-hook.mjs` on the same events. Codex provides `last_assistant_message` directly, so no transcript parsing is needed.
+
+The model is instructed (in the user's global CLAUDE.md / Codex AGENTS.md) to end each turn with one line:
+
+```
+<<voice: status + core info + next action>>
+```
+
+The model **targets ≤40 chars** (a guideline for keeping it ear-friendly); the hooks then **hard-cap spoken text at 60 chars** as a safety net — `maxResultChars` in `codex-hook.mjs` / `~/.voice-reply/hooks.json`, and `MARKER_MAX_CHARS` in `claude-hook.mjs`. Both Claude Code (`claude-hook`) and Codex (`codex-hook`) prefer this marker and fall back to keyword scoring only when it is absent.
+
+## Per-agent voice
+
+Claude Code speaks **male** (`zh-CN-YunxiNeural`, injected by `claude-hook.mjs` via `VOICE_REPLY_VOICE`); Codex speaks **female** (`zh-CN-XiaoxiaoNeural`, from `~/.voice-reply/config.json`). Change Claude's voice at the top of `claude-hook.mjs`; change Codex's in `config.json`.
+
+## Opening cue cache
+
+The three fixed opening phrases are pre-synthesized to `~/.voice-reply/cache/opening-<type>-<voice>.mp3` so the opening plays instantly and offline (live synthesis would add ~5s). The filename includes the voice, so changing `CLAUDE_VOICE` never replays the old voice — it falls back to live synthesis in the new voice until you re-run `setup.sh` to refresh the cache.
+
+## Dependency
+
+`speak.mjs` needs `edge-tts` (installed into `.venv` by `setup.sh`, or on PATH) and an audio player: `afplay` on macOS, or `ffplay`/`mpv`/`mpg123` on Linux/Windows. Edge TTS requires network access (Microsoft endpoint). Run `setup.sh` to install everything; it asks before changing your hook configs.
