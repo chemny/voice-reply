@@ -4,10 +4,21 @@ import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
+import { playOpening } from "./opening.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const speakScript = join(__dirname, "speak.mjs");
 const logPath = join(homedir(), ".voice-reply", "hook.log");
+
+// Codex 的音色（来自 config.json，默认女声），用于挑对应的开场缓存。
+function codexVoice() {
+  try {
+    const cfg = JSON.parse(readFileSync(join(homedir(), ".voice-reply", "config.json"), "utf8"));
+    return cfg.voice || "zh-CN-XiaoxiaoNeural";
+  } catch {
+    return "zh-CN-XiaoxiaoNeural";
+  }
+}
 
 const defaults = {
   enabled: true,
@@ -213,9 +224,11 @@ function main() {
   }
 
   const event = input.hook_event_name || process.argv[2] || "";
-  log("hook", { hook_event_name: event, has_last_assistant_message: Boolean(input.last_assistant_message) });
+  log("hook", { hook_event_name: event, input_keys: Object.keys(input), has_last_assistant_message: Boolean(input.last_assistant_message) });
   if (event === "UserPromptSubmit" && config.start) {
-    speak(["text", "--text", config.texts.UserPromptSubmit, "--full"]);
+    // 走和 Claude 一样的通用开场规则（opening.mjs）：按输入类型分类，女声、后台、缓存。
+    const cue = playOpening(input, codexVoice());
+    log("open", { cue: cue.key });
     return;
   }
 

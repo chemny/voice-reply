@@ -68,17 +68,22 @@ JSON
   echo "  wrote hooks.json"
 fi
 
-# 4) Pre-generate opening-cue cache for the configured Claude voice ----------
-VOICE="$(node -e 'const s=require("fs").readFileSync(process.argv[1],"utf8");const m=s.match(/CLAUDE_VOICE = "([^"]+)"/);process.stdout.write(m?m[1]:"zh-CN-YunxiNeural")' "$SKILL_DIR/scripts/claude-hook.mjs")"
-echo "Generating opening cache (voice: $VOICE)..."
-gen() {
-  local out="$VOICE_HOME/cache/opening-$1-$VOICE.mp3"
+# 4) Pre-generate opening-cue cache for both agent voices --------------------
+# The opening rule is shared (scripts/opening.mjs); only the voice differs:
+# Claude = CLAUDE_VOICE in claude-hook.mjs, Codex = "voice" in config.json.
+CLAUDE_VOICE="$(node -e 'const s=require("fs").readFileSync(process.argv[1],"utf8");const m=s.match(/CLAUDE_VOICE = "([^"]+)"/);process.stdout.write(m?m[1]:"zh-CN-YunxiNeural")' "$SKILL_DIR/scripts/claude-hook.mjs")"
+CODEX_VOICE="$(node -e 'try{const c=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));process.stdout.write(c.voice||"zh-CN-XiaoxiaoNeural")}catch{process.stdout.write("zh-CN-XiaoxiaoNeural")}' "$VOICE_HOME/config.json")"
+echo "Generating opening cache (Claude: $CLAUDE_VOICE, Codex: $CODEX_VOICE)..."
+gen() { # voice type text
+  local out="$VOICE_HOME/cache/opening-$2-$1.mp3"
   [ -f "$out" ] && return 0
-  "$PY" -m edge_tts --voice "$VOICE" --text "$2" --write-media "$out" && echo "  cached opening-$1"
+  "$PY" -m edge_tts --voice "$1" --text "$3" --write-media "$out" && echo "  cached opening-$2 ($1)"
 }
-gen question    "我看看"
-gen instruction "好，这就做"
-gen other       "收到"
+for V in "$CLAUDE_VOICE" "$CODEX_VOICE"; do
+  gen "$V" question    "我看看"
+  gen "$V" instruction "好，这就做"
+  gen "$V" other       "收到"
+done
 
 # 5) Register hooks (asks first) --------------------------------------------
 echo

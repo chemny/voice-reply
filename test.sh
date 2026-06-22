@@ -8,7 +8,7 @@ ok()   { echo "  ok   $1"; }
 bad()  { echo "  FAIL $1"; fail=1; }
 
 echo "1. syntax"
-for f in speak claude-hook codex-hook codex-notify manage-hooks; do
+for f in speak opening claude-hook codex-hook codex-notify manage-hooks; do
   if node --check "$S/$f.mjs" 2>/dev/null; then ok "$f.mjs"; else bad "$f.mjs"; fi
 done
 
@@ -26,13 +26,11 @@ out=$(printf '%s' '{"hook_event_name":"Stop","last_assistant_message":"已完成
   | VOICE_REPLY_DRY_RUN=1 node "$S/codex-hook.mjs" 2>/dev/null)
 echo "$out" | grep -q 'announceArgs' && ok "scoring fallback" || bad "scoring fallback"
 
-echo "5. opening classifier (Claude)"
-cls=$(node -e '
-const I=/(帮我|执行|加上|改一|改成|优化|修复|生成|创建|删除|安装|部署|搭建)/;
-const Q=/(？|\?|吗|呢|是不是|能不能|可以吗|对吗|对还是错|怎么|为什么|如何|多少|哪个|什么)/;
-const t=process.argv[1];
-console.log(I.test(t)?"instruction":Q.test(t)?"question":"other");' "帮我改一下")
-[ "$cls" = "instruction" ] && ok "classify instruction" || bad "classify instruction"
+echo "5. shared opening rule (opening.mjs, used by both agents)"
+oc() { node --input-type=module -e "import {openingCue} from '$S/opening.mjs'; console.log(openingCue(process.argv[1]).key)" "$1"; }
+[ "$(oc '帮我改一下')"   = "instruction" ] && ok "classify instruction" || bad "classify instruction"
+[ "$(oc '这样对吗')"     = "question" ]    && ok "classify question"    || bad "classify question"
+[ "$(oc '我跟你说个事')" = "other" ]       && ok "classify other"       || bad "classify other"
 
 echo
 [ "$fail" = "0" ] && echo "ALL PASS" || echo "SOME FAILED"

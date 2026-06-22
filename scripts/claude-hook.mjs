@@ -7,11 +7,12 @@
 //   - Codex 在 Stop 时直接给 last_assistant_message；
 //   - Claude Code 只给 transcript_path（一个 JSONL），需要自己从末尾回溯
 //     找到最后一条带 text 的 assistant 消息，拼成正文再交给 codex-hook。
-import { readFileSync, existsSync, appendFileSync, mkdirSync } from "node:fs";
+import { readFileSync, appendFileSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { spawn, spawnSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
+import { playOpening, playDetached } from "./opening.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const codexHook = join(__dirname, "codex-hook.mjs");
@@ -37,59 +38,8 @@ const CLAUDE_VOICE = "zh-CN-YunxiNeural";
 const VOICE_MARKER = /<<\s*voice\s*:\s*([\s\S]*?)>>/gi;
 const MARKER_MAX_CHARS = 60;
 
-// 开场提示：脚本在我读懂消息之前触发，只能按关键词粗判输入类型，
-// 给一句不机械的即时回应（播不出"对/错"，那要等我想完后由结果播报来说）。
-// 判不准（other）就用兜底「收到」，绝不硬猜。
-// 这几句是固定词，已预合成成 mp3 缓存，开场直接本地播放，保证 3 秒内出声。
-// 缓存文件名带音色：换 CLAUDE_VOICE 后旧缓存自动失效，绝不会放出上一个音色。
-const CACHE_DIR = join(homedir(), ".voice-reply", "cache");
-const OPENING = {
-  instruction: { text: "好，这就做", key: "instruction" },
-  question: { text: "我看看", key: "question" },
-  other: { text: "收到", key: "other" },
-};
+// 开场提示规则现在在共享模块 opening.mjs，Claude 和 Codex 共用。
 
-// 缓存文件名 = 类型 + 音色，确保改音色后不命中旧文件。
-function cacheFile(cue) {
-  return join(CACHE_DIR, `opening-${cue.key}-${CLAUDE_VOICE}.mp3`);
-}
-const INSTRUCTION_RE = /(帮我|帮忙|改一|改成|改个|换成|执行|加上|加个|加一|写个|写一|生成|创建|新建|删除|删掉|去掉|修复|优化|调整|设置|配置|做个|做一|给我|实现|部署|安装|运行|跑一|整理|翻译|画一|画个|开发|搭建)/;
-const QUESTION_RE = /(？|\?|吗|呢|是不是|能不能|可不可以|可以吗|对吗|对不对|对还是错|怎么|为什么|为啥|如何|多少|哪个|哪些|哪里|什么|是否|有没有)/;
-
-function openingCue(prompt) {
-  const text = String(prompt || "");
-  if (INSTRUCTION_RE.test(text)) return OPENING.instruction;
-  if (QUESTION_RE.test(text)) return OPENING.question;
-  return OPENING.other;
-}
-
-// 后台 fire-and-forget 启动，立刻返回，不阻塞 hook（声音在后台放，我同时干活）。
-function playDetached(command, args, extraEnv) {
-  try {
-    const child = spawn(command, args, {
-      detached: true,
-      stdio: "ignore",
-      env: extraEnv ? { ...process.env, ...extraEnv } : process.env,
-    });
-    child.unref();
-  } catch {
-    // 起不来就算了，不影响主流程。
-  }
-}
-
-// 优先播放预缓存的 mp3（离线、瞬时）；缓存缺失才退回联网合成。两者都后台异步、跨平台。
-function playOpening(cue) {
-  const cached = cacheFile(cue);
-  if (existsSync(cached)) {
-    playDetached(process.execPath, [speakScript, "play", "--file", cached]);
-    return;
-  }
-  playDetached(process.execPath, [speakScript, "text", "--text", cue.text, "--full"], {
-    VOICE_REPLY_VOICE: CLAUDE_VOICE,
-  });
-}
-
-// Claude Code 专用音色（男声）。Codex 不经过本脚本，仍用它自己的女声。
 function readStdinJson() {
   let raw = "";
   try {
@@ -171,10 +121,9 @@ function main() {
   const event = input.hook_event_name || process.argv[2] || "";
 
   if (event === "UserPromptSubmit") {
-    // 按你发的原文粗判类型，播一句即时回应（优先缓存，保证 3 秒内出声）。
-    const cue = openingCue(input.prompt);
+    // 按你发的原文粗判类型，播一句即时回应（共用 opening.mjs 规则，男声、后台、缓存）。
+    const cue = playOpening(input, CLAUDE_VOICE);
     log("open", { cue: cue.key });
-    playOpening(cue);
     return;
   }
 
