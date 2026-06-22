@@ -72,6 +72,31 @@ JSON
   echo "  wrote hooks.json"
 fi
 
+# 3b) First-run language choice — lock a language (or pick auto) --------------
+echo
+if [ -t 0 ]; then
+  echo "Which language should the voice use?"
+  echo "  [1] 中文 (Chinese)   ← default"
+  echo "  [2] English"
+  echo "  [3] Auto — follow each message's language"
+  read -r -p "Choose [1/2/3, press Enter for 中文]: " lch
+  case "$lch" in
+    2) LANG_CHOICE="en" ;;
+    3) LANG_CHOICE="auto" ;;
+    *) LANG_CHOICE="zh" ;;   # empty / anything else → Chinese (default)
+  esac
+else
+  LANG_CHOICE="${VOICE_REPLY_LANG:-zh}"
+fi
+# Write the choice into hooks.json: "zh"/"en" locks it; "auto" removes the lock.
+node -e '
+const fs=require("fs"), p=process.argv[1], choice=process.argv[2];
+let c={}; try{c=JSON.parse(fs.readFileSync(p,"utf8"))}catch{}
+if(choice==="auto"){ delete c.lang; } else { c.lang=choice; }
+fs.writeFileSync(p, JSON.stringify(c,null,2)+"\n");
+' "$VOICE_HOME/hooks.json" "$LANG_CHOICE"
+echo "  language: ${LANG_CHOICE}  (change anytime: set \"lang\" in ~/.voice-reply/hooks.json — \"zh\"/\"en\", or remove it for auto)"
+
 # 4) Pre-generate opening-cue cache for each agent's voices (zh + en) --------
 # The opening rule is shared (scripts/opening.mjs); only the voice differs.
 # Chinese voices get the Chinese phrases, English voices the English phrases.

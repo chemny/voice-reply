@@ -1,7 +1,7 @@
 ---
 name: voice-reply
 version: 1.0.0
-description: Speak a short, context-aware voice reply for agent work — an instant acknowledgement when the user submits, and a decision-first spoken result when the turn finishes (it leads with the choice the user must make, turning a one-way announcement into a back-and-forth). Auto-switches between Chinese and English per message. Works for both Claude Code and Codex via their hook systems, with local Edge TTS playback. Use when adding spoken acknowledgements/announcements, reading a result aloud, or wiring voice notifications into an agent workflow.
+description: Speak a short, context-aware voice reply for agent work — an instant acknowledgement when the user submits, and a decision-first spoken result when the turn finishes (it leads with the choice the user must make, turning a one-way announcement into a back-and-forth). Chinese + English: you pick a language at setup and it locks (or choose auto, which follows each message). Works for both Claude Code and Codex via their hook systems, with local Edge TTS playback. Use when adding spoken acknowledgements/announcements, reading a result aloud, or wiring voice notifications into an agent workflow.
 ---
 
 # Voice Reply
@@ -85,9 +85,11 @@ Claude Code speaks **male** and Codex speaks **female**, so you can tell them ap
 ## Opening cue
 
 The opening rule lives in `scripts/opening.mjs` and is **shared by both agents and
-both languages**: it detects the message's language (CJK → Chinese, else English;
-lock with `"lang": "zh"|"en"` in `~/.voice-reply/hooks.json`), classifies it
-(question / instruction / other), and plays the matching phrase in that agent's
+both languages**. `setup.sh` asks the user to pick a language on first install and
+writes it as `"lang": "zh"|"en"` in `~/.voice-reply/hooks.json` (a lock). When
+`lang` is set, that language is always used; remove `lang` to auto-detect each
+message (CJK → Chinese, else English). It then classifies the message
+(question / instruction / other) and plays the matching phrase in that agent's
 voice for that language. Chinese: 我看看 / 好，这就做 / 收到. English: Let me look /
 On it / Got it. Edit the language packs once and both Claude and Codex pick it up.
 

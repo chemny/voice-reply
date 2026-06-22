@@ -9,8 +9,8 @@ moment you speak, and when it finishes a step it tells you the **decision it nee
 from you**. You reply, it continues — a back-and-forth, so your eyes are free but
 you stay in control.
 
-Works with **Claude Code** and **Codex**, **auto-switches between Chinese and
-English per message**, with an instant opening cue, a decision-first result reply,
+Works with **Claude Code** and **Codex**, **Chinese + English (pick one at setup,
+locked; or choose auto-per-message)**, with an instant opening cue, a decision-first result reply,
 per-agent voices, one-command setup, cross-platform playback (macOS / Linux /
 Windows), and offline cues via local [Edge TTS](https://github.com/rany2/edge-tts).
 
@@ -47,7 +47,7 @@ line is missing, a keyword-scoring fallback summarizes the last message.
 |---|---|---|
 | Instant opening cue | classify by language + type | cached audio, offline, <1s, non-blocking |
 | Decision-first result | model's `<<voice:>>` marker, scoring fallback | a conclusion **or the choice you must make**, ready to answer |
-| Auto language switch | detect each message's language (lockable) | Chinese phrases + voice for Chinese, English for English |
+| Chinese + English | pick & lock at setup (or choose auto-per-message) | Chinese phrases + voice for Chinese, English for English |
 | Per-agent voice | Claude male, Codex female (each zh / en) | tell which agent is speaking by ear |
 | Single source of truth | `scripts/opening.mjs` | edit once — both agents, both languages |
 
@@ -144,10 +144,11 @@ Runtime data lives in `~/.voice-reply/`: `config.json` (voice/rate/volume),
 - An audio player: `afplay` on macOS, or `ffplay` / `mpv` / `mpg123` on Linux/Windows
 - Network access ([edge-tts](https://github.com/rany2/edge-tts) uses Microsoft's endpoint)
 
-Ships with **Chinese + English** opening phrases and classifiers, auto-selected
-per message; lock the whole session with `"lang": "zh"` or `"en"` in
-`~/.voice-reply/hooks.json`. Add more languages by editing the packs in
-`scripts/opening.mjs`.
+Ships with **Chinese + English** opening phrases and classifiers. **Setup asks
+you to pick one language and locks it** (stored as `"lang"` in
+`~/.voice-reply/hooks.json`). Change it anytime: set `lang` to `"zh"`/`"en"`, or
+**remove `lang` to go back to auto (per-message) switching**. Add more languages
+by editing the packs in `scripts/opening.mjs`.
 
 ## No sound?
 
