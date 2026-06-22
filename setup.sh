@@ -32,9 +32,12 @@ if [ ! -x "$PY" ]; then
   python3 -m venv "$VENV"
 fi
 echo "Installing edge-tts..."
-"$PY" -m pip install --quiet --upgrade pip >/dev/null
-"$PY" -m pip install --quiet edge-tts
-echo "  edge-tts ready"
+"$PY" -m pip install --quiet --upgrade pip >/dev/null 2>&1 || true
+if "$PY" -m pip install --quiet edge-tts; then
+  echo "  edge-tts ready"
+else
+  echo "  ! edge-tts install failed (network?) — setup will continue; run scripts/doctor.mjs"
+fi
 
 # 3) Default config + data dir ----------------------------------------------
 mkdir -p "$VOICE_HOME/cache"
@@ -77,10 +80,15 @@ CLAUDE_VOICE_EN="$(node -e 'const s=require("fs").readFileSync(process.argv[1],"
 CODEX_VOICE_ZH="$(node -e 'try{const c=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));process.stdout.write(c.voice||"zh-CN-XiaoxiaoNeural")}catch{process.stdout.write("zh-CN-XiaoxiaoNeural")}' "$VOICE_HOME/config.json")"
 CODEX_VOICE_EN="$(node -e 'try{const c=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));process.stdout.write(c.voiceEn||"en-US-AriaNeural")}catch{process.stdout.write("en-US-AriaNeural")}' "$VOICE_HOME/config.json")"
 echo "Generating opening cache (zh: $CLAUDE_VOICE_ZH/$CODEX_VOICE_ZH, en: $CLAUDE_VOICE_EN/$CODEX_VOICE_EN)..."
-gen() { # voice type text
+gen() { # voice type text  — never fatal: a failed synth (e.g. no network) just warns.
   local out="$VOICE_HOME/cache/opening-$2-$1.mp3"
   [ -f "$out" ] && return 0
-  "$PY" -m edge_tts --voice "$1" --text "$3" --write-media "$out" && echo "  cached opening-$2 ($1)"
+  if "$PY" -m edge_tts --voice "$1" --text "$3" --write-media "$out" 2>/dev/null; then
+    echo "  cached opening-$2 ($1)"
+  else
+    echo "  ! skip opening-$2 ($1): synth failed (network?) — will live-synth at runtime"
+  fi
+  return 0
 }
 for V in "$CLAUDE_VOICE_ZH" "$CODEX_VOICE_ZH"; do
   gen "$V" question    "我看看"
