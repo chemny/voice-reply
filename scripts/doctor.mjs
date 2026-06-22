@@ -55,19 +55,21 @@ const clips = existsSync(cacheDir) ? readdirSync(cacheDir).filter((f) => f.endsW
 clips.length ? PASS(`${clips.length} opening cache clips`) : WARN("no opening cache", "run ./setup.sh (else openings live-synth, slower)");
 
 console.log("\nHook registration");
-function checkHooks(label, file, script) {
+function checkHooks(label, file, scriptName) {
   if (!existsSync(file)) { WARN(`${label}: ${file} not found`, "run ./setup.sh and choose to register"); return; }
   let raw = "";
   try { raw = readFileSync(file, "utf8"); } catch { WARN(`${label}: unreadable`); return; }
-  if (!raw.includes(script)) { WARN(`${label}: voice-reply not registered`, "run ./setup.sh to register"); return; }
-  if (raw.includes('node \\"')) {
-    FAIL(`${label}: hook command has a quoted path (some runners take it literally → silent)`, "re-run ./setup.sh to rewrite it unquoted");
+  // Match by script basename — robust to symlinks / realpath differences (/tmp vs /private/tmp,
+  // or a skill dir symlinked to a repo). The path being absolute makes exact compares fragile.
+  if (!raw.includes(scriptName)) { WARN(`${label}: voice-reply not registered`, "run ./setup.sh to register"); return; }
+  if (raw.includes(`\\"${scriptName}`) || raw.includes('node \\"')) {
+    FAIL(`${label}: hook command path is quoted (some runners take it literally → silent)`, "re-run ./setup.sh to rewrite it unquoted");
   } else {
     PASS(`${label}: registered`);
   }
 }
-checkHooks("Claude Code", join(HOME, ".claude", "settings.json"), join(ROOT, "scripts", "claude-hook.mjs"));
-checkHooks("Codex", join(HOME, ".codex", "hooks.json"), join(ROOT, "scripts", "codex-hook.mjs"));
+checkHooks("Claude Code", join(HOME, ".claude", "settings.json"), "claude-hook.mjs");
+checkHooks("Codex", join(HOME, ".codex", "hooks.json"), "codex-hook.mjs");
 
 console.log(`\n${fails ? `✗ ${fails} problem(s)` : warns ? `⚠ ${warns} warning(s)` : "✓ all good"} — restart your agent session after any change.`);
 process.exit(fails ? 1 : 0);
