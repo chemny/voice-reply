@@ -34,6 +34,7 @@ const defaults = {
   texts: {
     UserPromptSubmit: "好的。",
     Stop: "已完成，请查看结果。",
+    StopEn: "Done. Check the result.",
     StopSummaryPrefix: "已完成。",
     PreToolUse: "开始执行工具。",
     PostToolUse: "工具执行完成。",
@@ -245,14 +246,16 @@ function main() {
       log("stop", { source: "marker" });
       speak(["text", "--text", truncateText(marker, config.maxResultChars), "--full"], resolveVoice(voices, detectLang(marker)));
     } else if (config.stopMode === "summary" && input.last_assistant_message) {
-      const prefix = config.texts.StopSummaryPrefix;
-      const maxSummaryChars = Math.max(20, config.maxResultChars - [...prefix].length);
-      const summary = buildSummary(input.last_assistant_message, { ...config, maxResultChars: maxSummaryChars });
-      const voice = resolveVoice(voices, detectLang(input.last_assistant_message));
-      if (summary) {
-        speak(["text", "--text", truncateText(`${prefix}${summary}`, config.maxResultChars), "--full"], voice);
+      const lang = detectLang(input.last_assistant_message);
+      const voice = resolveVoice(voices, lang);
+      if (lang === "en") {
+        // 英文：buildSummary 是中文调校的（会加中文前缀、删空格），跳过它，播干净的英文固定句。
+        speak(["text", "--text", config.texts.StopEn, "--full"], voice);
       } else {
-        speak(["text", "--text", config.texts.Stop, "--full"], voice);
+        const prefix = config.texts.StopSummaryPrefix;
+        const maxSummaryChars = Math.max(20, config.maxResultChars - [...prefix].length);
+        const summary = buildSummary(input.last_assistant_message, { ...config, maxResultChars: maxSummaryChars });
+        speak(["text", "--text", summary ? truncateText(`${prefix}${summary}`, config.maxResultChars) : config.texts.Stop, "--full"], voice);
       }
     } else {
       speak(["text", "--text", config.texts.Stop, "--full"], resolveVoice(voices, "zh"));

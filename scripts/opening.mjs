@@ -36,20 +36,27 @@ const PACKS = {
   },
 };
 
-// 语言锁：~/.voice-reply/hooks.json 的 "lang"（"zh"|"en"），缺省/auto 则自动判定。
-function configLang() {
+// 读 ~/.voice-reply/hooks.json 的某个键（lang 锁定、defaultLang 兜底）。
+function configKey(key) {
   try {
-    return JSON.parse(readFileSync(CONFIG, "utf8")).lang;
+    return JSON.parse(readFileSync(CONFIG, "utf8"))[key];
   } catch {
     return undefined;
   }
 }
 
-// 判定一段文字的语种：config.lang 可强制锁定；否则有中文字→zh，其余→en。
+// 判定一段文字的语种：
+//   1) config.lang 锁定（"zh"|"en"）优先；
+//   2) 含中日韩汉字 → zh；
+//   3) 含拉丁字母 → en；
+//   4) 纯路径/代码/符号/数字（无字母）→ config.defaultLang（默认 en），不硬判。
 export function detectLang(text) {
-  const forced = configLang();
+  const forced = configKey("lang");
   if (forced === "zh" || forced === "en") return forced;
-  return /[一-鿿]/.test(String(text || "")) ? "zh" : "en";
+  const s = String(text || "");
+  if (/[一-鿿]/.test(s)) return "zh";
+  if (/[A-Za-z]/.test(s)) return "en";
+  return configKey("defaultLang") === "zh" ? "zh" : "en";
 }
 
 // 通用分类规则（按语言包）：指令 → 提问 → 兜底。
@@ -117,7 +124,13 @@ export function playOpening(input, voices) {
   const cue = openingCue(text, lang);
   const voice = resolveVoice(voices, lang);
   const cached = join(CACHE_DIR, `opening-${cue.key}-${voice}.mp3`);
-  if (existsSync(cached)) {
+  const hit = existsSync(cached);
+  // dry-run：开场走后台播放，平时看不见；这里打印将播什么，便于自测/排查。
+  if (process.env.VOICE_REPLY_DRY_RUN === "1") {
+    process.stdout.write(JSON.stringify({ opening: { key: cue.key, lang, voice, cache: hit ? "hit" : "miss", text: cue.text } }, null, 2) + "\n");
+    return { key: cue.key, lang, voice };
+  }
+  if (hit) {
     playDetached(process.execPath, [speakScript, "play", "--file", cached]);
   } else {
     playDetached(process.execPath, [speakScript, "text", "--text", cue.text, "--full"], {

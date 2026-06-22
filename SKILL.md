@@ -50,6 +50,7 @@ Run from the skill directory (`$SKILL` = wherever this skill is installed):
 node "$SKILL/scripts/speak.mjs" done
 node "$SKILL/scripts/speak.mjs" text --text "改好了，记得重启。" --full
 node "$SKILL/scripts/speak.mjs" summary --text "修复了参数解析并通过校验。"
+node "$SKILL/scripts/speak.mjs" play --file <file.mp3>   # play an existing clip (cross-platform)
 ```
 
 `speak.mjs` resolves Edge TTS from the project `.venv` (created by `setup.sh`) if `edge-tts` is not on PATH, and auto-detects a player (`afplay`/`ffplay`/`mpv`/`mpg123`). Use `--dry-run` to preview text and dependency status without audio. Voice/rate/volume can be overridden by `--voice/--rate/--volume`, by env vars `VOICE_REPLY_VOICE/RATE/VOLUME`, or by `~/.voice-reply/config.json`.

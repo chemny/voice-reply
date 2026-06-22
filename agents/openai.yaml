@@ -1,4 +1,4 @@
 interface:
   display_name: "Voice Reply"
-  short_description: "Speak a short spoken reply on task start and completion"
+  short_description: "Voice replies for coding agents: instant cue on submit, decision-first result on finish (zh/en auto)"
   default_prompt: "Use $voice-reply to speak a short completion summary for this task."
