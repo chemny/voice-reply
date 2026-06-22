@@ -66,6 +66,10 @@ The model is instructed (in the user's global CLAUDE.md / Codex AGENTS.md) to en
 <<voice: status + core info + next action>>
 ```
 
+**Decision-first**: when the result needs the user to decide, choose, confirm, or
+answer something, the marker should lead with what the user must do (e.g.
+`<<voice: 要你定：现在能不能重启？>>`) so they can reply by voice without reading.
+
 The model **targets ≤40 chars** (a guideline for keeping it ear-friendly); the hooks then **hard-cap spoken text at 60 chars** as a safety net — `maxResultChars` in `codex-hook.mjs` / `~/.voice-reply/hooks.json`, and `MARKER_MAX_CHARS` in `claude-hook.mjs`. Both Claude Code (`claude-hook`) and Codex (`codex-hook`) prefer this marker and fall back to keyword scoring only when it is absent.
 
 ## Per-agent voice
