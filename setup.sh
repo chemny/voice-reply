@@ -52,7 +52,7 @@ if [ ! -f "$VOICE_HOME/hooks.json" ]; then
   cat > "$VOICE_HOME/hooks.json" <<'JSON'
 {
   "enabled": true,
-  "start": false,
+  "start": true,
   "stop": true,
   "stopMode": "summary",
   "maxResultChars": 60,
