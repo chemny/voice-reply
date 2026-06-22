@@ -143,6 +143,14 @@ function normalizeWhitespace(text) {
   return String(text || "").replace(/\s+/g, " ").trim();
 }
 
+// Strip emoji / pictographs / decorative symbols (enclosed numbers, arrows,
+// geometric shapes, dingbats, variation selectors). Normal punctuation
+// (，。！？、… —, etc.) is kept — TTS uses it for intonation/pauses.
+const UNSPEAKABLE_RE = /[\u{1F000}-\u{1FAFF}\u{2190}-\u{21FF}\u{2300}-\u{27BF}\u{2460}-\u{24FF}\u{25A0}-\u{25FF}\u{2B00}-\u{2BFF}\u{FE00}-\u{FE0F}\u{200D}\u{20E3}]/gu;
+function stripUnspeakable(text) {
+  return String(text || "").replace(UNSPEAKABLE_RE, "").replace(/\s{2,}/g, " ").trim();
+}
+
 function truncateText(text, maxChars) {
   const normalized = normalizeWhitespace(text);
   if (!Number.isFinite(maxChars) || maxChars <= 0) return normalized;
@@ -209,9 +217,15 @@ function main() {
     return;
   }
 
-  const text = resolveSpeechText(mode, config, options);
+  const text = stripUnspeakable(resolveSpeechText(mode, config, options));
   const edgeAvailable = commandExists(edgeTtsCommand);
   const player = resolvePlayer(config.playCommand);
+
+  // Nothing speakable left after stripping (e.g. emoji-only) — skip silently.
+  if (!text) {
+    if (options.dryRun) process.stdout.write(JSON.stringify({ mode, text: "", skipped: "empty after sanitize" }, null, 2) + "\n");
+    return;
+  }
 
   if (options.dryRun) {
     process.stdout.write(JSON.stringify({
