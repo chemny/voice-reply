@@ -16,10 +16,15 @@ echo "2. speak.mjs dry-run"
 node "$S/speak.mjs" done --dry-run >/dev/null 2>&1 && ok "speak done" || bad "speak done"
 node "$S/speak.mjs" play --file /tmp/none.mp3 --dry-run >/dev/null 2>&1 && ok "speak play" || bad "speak play"
 
-echo "3. codex-hook prefers <<voice:>> marker"
+echo "3. codex-hook prefers <<voice:>> marker (incl. single-char answer)"
 out=$(printf '%s' '{"hook_event_name":"Stop","last_assistant_message":"一堆细节。\n\n<<voice: 对>>"}' \
   | VOICE_REPLY_DRY_RUN=1 node "$S/codex-hook.mjs" 2>/dev/null)
-echo "$out" | grep -q '"对"' && ok "marker priority" || bad "marker priority"
+echo "$out" | grep -q '"对"' && ok "single-char marker kept" || bad "single-char marker kept"
+
+echo "3b. codex-hook rejects punctuation-only marker (falls back, not spoken literally)"
+out=$(printf '%s' '{"hook_event_name":"Stop","last_assistant_message":"改好了，记得重启。\n\n<<voice: ...>>"}' \
+  | VOICE_REPLY_DRY_RUN=1 node "$S/codex-hook.mjs" 2>/dev/null)
+echo "$out" | grep -q '\.\.\.' && bad "reject punct-only marker" || ok "reject punct-only marker"
 
 echo "4. codex-hook falls back to scoring without marker"
 out=$(printf '%s' '{"hook_event_name":"Stop","last_assistant_message":"已完成。修复了参数解析并通过校验。"}' \

@@ -60,7 +60,7 @@ function isUsefulVoiceText(text) {
   const compact = String(text || "").replace(/[，。,.!?！？、；;:：'"“”‘’()\[\]{}<>《》…\-\s]/g, "");
   if (!compact) return false;
   if (/^[.。…]+$/.test(text.trim())) return false;
-  return /[\u4e00-\u9fff]{2,}/.test(compact) || /[A-Za-z0-9]{3,}/.test(compact);
+  return compact.length > 0; // \u975e\u7a7a\u5373\u6709\u6548\uff1a\u4fdd\u7559\u5355\u5b57\u7b54\u6848\uff08\u5bf9/\u9519/\u80fd\u3001\u9009 B\uff09
 }
 
 function readStdinJson() {
