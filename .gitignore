@@ -17,3 +17,6 @@ Thumbs.db
 # Publisher reports
 publish-check-report.json
 smoke-test-report.json
+
+# OpenClaw adapter — kept local, not published
+openclaw/
