@@ -11,7 +11,7 @@ import { readFileSync, appendFileSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { playOpening, playDetached, detectLang, resolveVoice } from "./opening.mjs";
+import { playOpening, playDetached, detectLang, resolveVoice, clampSpoken } from "./opening.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const speakScript = join(__dirname, "speak.mjs");
@@ -94,8 +94,8 @@ function extractVoiceMarker(text) {
   while ((match = re.exec(text)) !== null) last = match[1];
   const cleaned = last.replace(/\s+/g, " ").trim();
   if (!isUsefulVoiceText(cleaned)) return "";
-  if ([...cleaned].length <= MARKER_MAX_CHARS) return cleaned;
-  return [...cleaned].slice(0, MARKER_MAX_CHARS).join("").replace(/[，。,.!?！？、\s]+$/u, "") + "。";
+  // 硬截到 ≤60，但在句末/逗号边界收尾（既保证 ≤60，又不切半句）。
+  return clampSpoken(cleaned, MARKER_MAX_CHARS);
 }
 
 function isUsefulVoiceText(text) {

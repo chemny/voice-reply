@@ -77,7 +77,7 @@ The model is instructed (in the user's global CLAUDE.md / Codex AGENTS.md) to en
 answer something, the marker should lead with what the user must do (e.g.
 `<<voice: 要你定：现在能不能重启？>>`) so they can reply by voice without reading.
 
-The model **targets ≤60 chars** to keep it ear-friendly; the hooks also **hard-cap spoken text at 60 chars** as a safety net — `maxResultChars` in `codex-hook.mjs` / `~/.voice-reply/hooks.json`, and `MARKER_MAX_CHARS` in `claude-hook.mjs`. Both Claude Code (`claude-hook`) and Codex (`codex-hook`) speak only this marker on turn completion; if it is absent, they stay silent.
+The model **must keep the marker ≤60 chars** (rewrite shorter if it would exceed). As a hard safety net the hooks also **clamp the spoken audio to ≤60 chars**, trimming at the last sentence/clause boundary so it stays complete (never cut mid-word) — see `clampSpoken` in `scripts/opening.mjs` and `maxResultChars` / `MARKER_MAX_CHARS`. Both Claude Code (`claude-hook`) and Codex (`codex-hook`) speak only this marker on turn completion; if it is absent, they stay silent.
 
 ## Per-agent voice
 

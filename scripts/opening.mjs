@@ -103,6 +103,21 @@ export function extractVoiceMarker(text) {
   return last.replace(/\s+/g, " ").trim();
 }
 
+// 硬截到 ≤max 字，但在最后一个句末/逗号边界处收尾——保证 ≤max 且是完整一句，不切词中间。
+// 极端情况（max 字内无任何标点）才退回硬切 + 句号。
+const SENT_END = new Set(["。", "！", "？", "!", "?"]);
+const CLAUSE_END = new Set(["；", ";", "，", ",", "、"]);
+export function clampSpoken(text, max = 60) {
+  const chars = [...String(text || "").trim()];
+  if (chars.length <= max) return chars.join("");
+  const head = chars.slice(0, max);
+  let cut = -1;
+  for (let i = head.length - 1; i >= 4; i -= 1) if (SENT_END.has(head[i])) { cut = i; break; }
+  if (cut < 0) for (let i = head.length - 1; i >= 4; i -= 1) if (CLAUSE_END.has(head[i])) { cut = i; break; }
+  if (cut >= 4) return head.slice(0, cut + 1).join("").replace(/[，,、；;]+$/u, "。");
+  return head.join("").replace(/[，。,.!?！？、；;\s]+$/u, "") + "。";
+}
+
 // 后台 fire-and-forget 启动，立刻返回，不阻塞 hook。
 export function playDetached(command, args, extraEnv) {
   try {

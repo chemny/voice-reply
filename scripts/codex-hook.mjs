@@ -4,7 +4,7 @@ import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
-import { playOpening, detectLang, resolveVoice } from "./opening.mjs";
+import { playOpening, detectLang, resolveVoice, clampSpoken } from "./opening.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const speakScript = join(__dirname, "speak.mjs");
@@ -260,7 +260,8 @@ function main() {
     if (marker) {
       // 模型主动写的播报标记：直接念，最准。音色按标记语种选（与 Claude 一致）。
       log("stop", { source: "marker" });
-      speak(["text", "--text", truncateText(marker, config.maxResultChars), "--full"], pickVoice(voices, detectLang(marker)));
+      // 硬截到 ≤60，但在句末/逗号边界收尾（保证 ≤60 且不切半句）。
+      speak(["text", "--text", clampSpoken(marker, config.maxResultChars), "--full"], pickVoice(voices, detectLang(marker)));
     } else {
       log("stop", { source: "no-marker-silent" });
     }

@@ -175,7 +175,8 @@ End every final reply with one spoken-result marker on its own line:
 
 `<<voice: status + core info + next step>>`
 
-Keep it within 60 characters, ear-friendly, and free of code, paths, or secrets.
+It MUST be 60 characters or fewer — if longer, rewrite it shorter. Keep it
+ear-friendly and free of code, paths, or secrets.
 When the result needs the user to decide, choose, confirm, or answer, lead with
 what the user must do.
 EOF
