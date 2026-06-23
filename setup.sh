@@ -6,6 +6,7 @@ SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VOICE_HOME="$HOME/.voice-reply"
 VENV="$SKILL_DIR/.venv"
 PY="$VENV/bin/python"
+MARKER_SENTINEL="voice-reply result marker"
 
 echo "Voice Reply setup"
 echo "  skill dir : $SKILL_DIR"
@@ -155,20 +156,44 @@ else
   echo "    node scripts/manage-notify.mjs add \"$SKILL_DIR\""
 fi
 
-# 6) Marker rule reminder ----------------------------------------------------
-cat <<EOF
+# 6) Agent instruction rule --------------------------------------------------
+add_marker_rule() {
+  local file="$1"
+  local label="$2"
+  mkdir -p "$(dirname "$file")"
+  touch "$file"
+  if grep -q "$MARKER_SENTINEL" "$file"; then
+    echo "  $label rule already present"
+    return 0
+  fi
+  cat >> "$file" <<'EOF'
 
-Last step (manual): add the result-marker rule to your agent instructions so
-the model writes a spoken summary each turn.
+## Voice Reply
 
-  Claude Code -> ~/.claude/CLAUDE.md
-  Codex       -> ~/.codex/AGENTS.md
+<!-- voice-reply result marker -->
+End every final reply with one spoken-result marker on its own line:
 
-Rule: end every final reply with one line — <<voice: status + core info + next step>>
-(target <=60 chars; ear-friendly; no code/paths/secrets).
-Decision-first: if the result needs the user to decide/choose/confirm/answer,
-lead with what they must do, e.g. <<voice: 要你定：现在能不能重启？>>.
+`<<voice: status + core info + next step>>`
+
+Keep it within 60 characters, ear-friendly, and free of code, paths, or secrets.
+When the result needs the user to decide, choose, confirm, or answer, lead with
+what the user must do.
 EOF
+  echo "  added $label rule"
+}
+
+echo
+if [ -t 0 ]; then
+  read -r -p "Add the result-marker rule to Claude Code and Codex instructions? [y/N] " rans
+else
+  rans="${VOICE_REPLY_AGENT_RULES:-n}"
+fi
+if [[ "$rans" =~ ^[Yy]$ ]]; then
+  add_marker_rule "$HOME/.claude/CLAUDE.md" "Claude Code"
+  add_marker_rule "$HOME/.codex/AGENTS.md" "Codex"
+else
+  echo "  Skipped. Rerun the installer later to add the result-marker rule."
+fi
 
 # 7) Self-check + audible confirmation ----------------------------------------
 echo

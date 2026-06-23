@@ -44,13 +44,13 @@ or intermediate status by mistake.
 
 ## Core Capabilities
 
-| Capability | Input | Output |
-|---|---|---|
-| Instant opening cue | classify by language + type | cached audio, offline, <1s, non-blocking |
-| Decision-first result | model's `<<voice:>>` marker, silent when missing | a conclusion **or the choice you must make**, ready to answer |
-| Chinese + English | pick & lock at setup (or choose auto-per-message) | Chinese phrases + voice for Chinese, English for English |
-| Per-agent voice | Claude male, Codex female (each zh / en) | tell which agent is speaking by ear |
-| Single source of truth | `scripts/opening.mjs` | edit once — both agents, both languages |
+| Capability | What It Helps You Do |
+|---|---|
+| Instant opening cue | Hear immediately that the agent has received the task and started working. |
+| Final voice reply | Speak only the final `voice` marker, so long answers or intermediate status do not get read aloud. |
+| Decision-first reminder | When the result needs approval, a choice, or a next step, hear that action first. |
+| Chinese + English voice | Use fixed Chinese, fixed English, or automatic language switching per message. |
+| Per-agent voice identity | Give Claude Code and Codex different voices so parallel agents are easy to tell apart. |
 
 ## Platform Compatibility
 
@@ -65,16 +65,16 @@ Playback works on macOS (`afplay`) and Linux/Windows (`ffplay` / `mpv` / `mpg123
 ## Install
 
 ```bash
-git clone https://github.com/chemny/voice-reply ~/.agents/skills/voice-reply
-cd ~/.agents/skills/voice-reply
-./setup.sh
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/chemny/voice-reply/main/install.sh)"
 ```
 
-`setup.sh` creates the venv + installs edge-tts, generates the opening cache for
-both voices, writes default config into `~/.voice-reply/`, and — **after asking** —
-merges hooks into `~/.claude/settings.json` and `~/.codex/hooks.json` (backing
-them up first, never clobbering existing hooks). It then prints the marker rule
-to add to your agent instructions. Restart your agent session afterwards.
+The installer guides the full setup: repository checkout, Python environment,
+Edge TTS, voice cache, Claude Code / Codex hooks, result-marker instructions, and
+a final sound test. Restart the agent session after it finishes.
+
+The default install location is `~/.agents/skills/voice-reply`. Set
+`VOICE_REPLY_INSTALL_DIR` before running the installer if you want a different
+folder.
 
 ## Quick Start
 
@@ -83,31 +83,13 @@ After install + restart, just send a message:
 - Ask a question → hear *"我看看"* immediately, then the conclusion (e.g. *"对"*).
 - Give an instruction → hear *"好，这就做"*, then *"改好了，记得重启"* when done.
 
-Manual check (no hooks needed):
-
-```bash
-node scripts/speak.mjs done
-./test.sh        # dry-run regression checks (no audio, no network)
-```
+The installer finishes with an audible test and a self-check report.
 
 ## Usage Examples
 
-```bash
-# Speak a line
-node scripts/speak.mjs text --text "改好了，记得重启。" --full
-
-# Play an existing audio file (cross-platform player)
-node scripts/speak.mjs play --file ~/.voice-reply/cache/opening-question-zh-CN-YunxiNeural.mp3
-
-# Preview the spoken text and dependency status without audio
-node scripts/speak.mjs summary --text "修复了参数解析并通过校验。" --dry-run
-```
-
-The result marker the model writes each turn looks like:
-
-```text
-<<voice: 改好了，记得重启会话生效>>
-```
+Result speech comes from the `<<voice: ...>>` marker in the agent's final reply.
+That marker is written for the ear: short, direct, and focused on the conclusion
+or next action.
 
 ## How It Works
 
@@ -130,7 +112,7 @@ voice-reply/
 │   ├── codex-hook.mjs   # Codex hook entry
 │   ├── codex-notify.mjs # Codex notify fallback
 │   └── manage-hooks.mjs # idempotent install/remove hooks (with backup)
-├── setup.sh / uninstall.sh / test.sh
+├── install.sh / setup.sh / uninstall.sh / test.sh
 ├── SKILL.md / README.md / README.en.md / LICENSE / .gitignore
 └── agents/openai.yaml
 ```
@@ -145,11 +127,9 @@ Runtime data lives in `~/.voice-reply/`: `config.json` (voice/rate/volume),
 - An audio player: `afplay` on macOS, or `ffplay` / `mpv` / `mpg123` on Linux/Windows
 - Network access ([edge-tts](https://github.com/rany2/edge-tts) uses Microsoft's endpoint)
 
-Ships with **Chinese + English** opening phrases and classifiers. **Setup asks
-you to pick one language and locks it** (stored as `"lang"` in
-`~/.voice-reply/hooks.json`). Change it anytime: set `lang` to `"zh"`/`"en"`, or
-**remove `lang` to go back to auto (per-message) switching**. Add more languages
-by editing the packs in `scripts/opening.mjs`.
+Ships with **Chinese + English** opening phrases and classifiers. During install
+you can choose Chinese, English, or auto per-message switching. More languages
+can be added by extending the packs in `scripts/opening.mjs`.
 
 ## No sound?
 
@@ -163,11 +143,12 @@ Common causes:
 
 - **Didn't restart the agent** — hooks load at session start, so restart Claude Code / Codex after install.
 - **No audio player** (Linux/Windows) — install `ffplay` (ffmpeg), `mpv`, or `mpg123`; macOS ships `afplay`.
-- **Hooks not registered, or the command path got quoted** — re-run `./setup.sh`; it rewrites the hook in the correct (unquoted) form.
+- **Hooks not registered, or the command path got quoted** — rerun the one-command installer; it rewrites the hook in the correct form.
 - **This Codex build has no hooks support** (older / some Windows CLIs) — use the `notify` fallback: `node scripts/manage-notify.mjs add "$(pwd)"`, then restart Codex. It takes over Codex's `notify` (preserving and chaining your existing one) and speaks the voice marker on **completion only — no opening cue**.
-- **edge-tts not installed** — re-run `./setup.sh` (needs python3 + network).
+- **edge-tts not installed** — rerun the one-command installer (needs python3 + network).
 
-`setup.sh` ends by running the doctor and playing a test sound — if you hear it, audio works.
+The install flow ends by running the doctor and playing a test sound. If you hear
+it, audio works.
 
 ## License
 

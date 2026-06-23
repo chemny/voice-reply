@@ -20,6 +20,8 @@ echo "1. syntax"
 for f in speak opening claude-hook codex-hook codex-notify manage-hooks manage-notify doctor; do
   if node --check "$S/$f.mjs" 2>/dev/null; then ok "$f.mjs"; else bad "$f.mjs"; fi
 done
+bash -n "$SKILL_DIR/setup.sh" && ok "setup.sh" || bad "setup.sh"
+bash -n "$SKILL_DIR/install.sh" && ok "install.sh" || bad "install.sh"
 
 echo "2. speak.mjs dry-run"
 node "$S/speak.mjs" done --dry-run >/dev/null 2>&1 && ok "speak done" || bad "speak done"

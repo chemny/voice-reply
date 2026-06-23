@@ -20,6 +20,7 @@ Playback is local Edge TTS + `afplay`, fired in the background so hooks return i
 ```
 voice-reply/
   SKILL.md
+  install.sh           # one-command bootstrap installer
   setup.sh             # one-command install (venv, cache, hooks)
   uninstall.sh         # remove hooks, restore backups
   test.sh              # dry-run regression checks
