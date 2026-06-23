@@ -11,11 +11,9 @@ import { readFileSync, appendFileSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { spawnSync } from "node:child_process";
 import { playOpening, playDetached, detectLang, resolveVoice } from "./opening.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const codexHook = join(__dirname, "codex-hook.mjs");
 const speakScript = join(__dirname, "speak.mjs");
 const LOG_PATH = join(homedir(), ".voice-reply", "hook.log");
 
@@ -36,8 +34,9 @@ const CLAUDE_VOICE_EN = "en-US-GuyNeural";
 const CLAUDE_VOICES = { zh: CLAUDE_VOICE_ZH, en: CLAUDE_VOICE_EN };
 
 // 回答里"为耳朵写的"播报摘要标记：<<voice: 已完成…，记得…>>
-// 优先朗读它；抓不到再退回 codex-hook 的关键词打分兜底。
+// 只朗读这个显式标记；抓不到就静默，避免把长正文或中途状态念出来。
 const VOICE_MARKER = /<<\s*voice\s*:\s*([\s\S]*?)>>/gi;
+const MARKER_MAX_CHARS = 60;
 
 // 开场提示规则现在在共享模块 opening.mjs，Claude 和 Codex 共用。
 
@@ -94,8 +93,9 @@ function extractVoiceMarker(text) {
   let last = "";
   while ((match = re.exec(text)) !== null) last = match[1];
   const cleaned = last.replace(/\s+/g, " ").trim();
-  // 不截断：把模型写的整条标记念完（不再切半句）。
-  return isUsefulVoiceText(cleaned) ? cleaned : "";
+  if (!isUsefulVoiceText(cleaned)) return "";
+  if ([...cleaned].length <= MARKER_MAX_CHARS) return cleaned;
+  return [...cleaned].slice(0, MARKER_MAX_CHARS).join("").replace(/[，。,.!?！？、\s]+$/u, "") + "。";
 }
 
 function isUsefulVoiceText(text) {
@@ -109,19 +109,6 @@ function speakDirect(text) {
   const voice = resolveVoice(CLAUDE_VOICES, detectLang(text));
   playDetached(process.execPath, [speakScript, "text", "--text", text, "--full"], {
     VOICE_REPLY_VOICE: voice,
-  });
-}
-
-// 把转换后的 Codex 形态 payload 交给 codex-hook.mjs（它负责摘要+朗读）。
-// 音色按回答文字的语种选，一路通过环境变量传到 speak.mjs。
-function delegate(payload, text) {
-  const voice = resolveVoice(CLAUDE_VOICES, detectLang(text));
-  spawnSync(process.execPath, [codexHook], {
-    input: JSON.stringify(payload),
-    encoding: "utf8",
-    stdio: ["pipe", "ignore", "ignore"],
-    timeout: 30000,
-    env: { ...process.env, VOICE_REPLY_VOICE: voice },
   });
 }
 
@@ -145,9 +132,7 @@ function main() {
       speakDirect(marker);
       return;
     }
-    // 没写标记时退回关键词打分兜底。
-    log("stop", { source: "fallback" });
-    delegate({ hook_event_name: "Stop", last_assistant_message: message }, message);
+    log("stop", { source: "no-marker-silent" });
     return;
   }
 }

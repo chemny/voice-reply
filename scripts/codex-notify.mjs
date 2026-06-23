@@ -6,8 +6,8 @@
 //
 // so the notification JSON is the LAST argv. This script:
 //   1) chains the user's ORIGINAL notify program (preserved at setup time), and
-//   2) on turn completion, speaks the model's <<voice:>> marker (or a generic
-//      line), in the language-matched Codex voice.
+//   2) on turn completion, speaks only the model's <<voice:>> marker, in the
+//      language-matched Codex voice. Missing marker stays silent.
 //
 // Limitation vs hooks: notify only fires on completion — there is no opening cue.
 import { readFileSync } from "node:fs";
@@ -67,15 +67,21 @@ function main() {
   if (!isComplete) return;
 
   const marker = extractVoiceMarker(msg);
-  const lang = detectLang(marker || msg);
-  const voice = resolveVoice(codexVoices(), lang);
-  const text = marker || (lang === "en" ? "Done. Check the result." : "已完成，请查看结果。");
-
-  if (dry) {
-    process.stdout.write(JSON.stringify({ notify: { chained: original.length ? original[0] : null, text, voice, source: marker ? "marker" : "fallback" } }, null, 2) + "\n");
+  if (!marker) {
+    if (dry) {
+      process.stdout.write(JSON.stringify({ notify: { chained: original.length ? original[0] : null, source: "no-marker-silent" } }, null, 2) + "\n");
+    }
     return;
   }
-  playDetached(process.execPath, [speakScript, "text", "--text", text, "--full"], { VOICE_REPLY_VOICE: voice });
+
+  const lang = detectLang(marker);
+  const voice = resolveVoice(codexVoices(), lang);
+
+  if (dry) {
+    process.stdout.write(JSON.stringify({ notify: { chained: original.length ? original[0] : null, text: marker, voice, source: "marker" } }, null, 2) + "\n");
+    return;
+  }
+  playDetached(process.execPath, [speakScript, "text", "--text", marker, "--full"], { VOICE_REPLY_VOICE: voice });
 }
 
 main();

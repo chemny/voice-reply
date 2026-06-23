@@ -39,14 +39,15 @@ Two spoken moments per turn:
 
 The intelligence lives in the model, not the script: the model ends each reply
 with a `<<voice: ...>>` line, and the hook simply extracts and speaks it. If the
-line is missing, a keyword-scoring fallback summarizes the last message.
+line is missing, result speech stays silent so the hook never reads long body text
+or intermediate status by mistake.
 
 ## Core Capabilities
 
 | Capability | Input | Output |
 |---|---|---|
 | Instant opening cue | classify by language + type | cached audio, offline, <1s, non-blocking |
-| Decision-first result | model's `<<voice:>>` marker, scoring fallback | a conclusion **or the choice you must make**, ready to answer |
+| Decision-first result | model's `<<voice:>>` marker, silent when missing | a conclusion **or the choice you must make**, ready to answer |
 | Chinese + English | pick & lock at setup (or choose auto-per-message) | Chinese phrases + voice for Chinese, English for English |
 | Per-agent voice | Claude male, Codex female (each zh / en) | tell which agent is speaking by ear |
 | Single source of truth | `scripts/opening.mjs` | edit once — both agents, both languages |
@@ -113,7 +114,7 @@ The result marker the model writes each turn looks like:
 | Moment | Who decides what to say | What you hear |
 |---|---|---|
 | You submit | hook classifies the prompt (`scripts/opening.mjs`, shared) | 我看看 / 好，这就做 / 收到 |
-| Agent finishes | the **model** writes `<<voice: …>>` | the real result; keyword scoring as fallback |
+| Agent finishes | the **model** writes `<<voice: …>>` | the real result; silent when missing |
 
 The hook scripts only play audio. Playback is fired in the background so hooks
 return in ~200 ms and never block the agent. Spoken text is hard-capped at 60 chars.
@@ -163,11 +164,11 @@ Common causes:
 - **Didn't restart the agent** — hooks load at session start, so restart Claude Code / Codex after install.
 - **No audio player** (Linux/Windows) — install `ffplay` (ffmpeg), `mpv`, or `mpg123`; macOS ships `afplay`.
 - **Hooks not registered, or the command path got quoted** — re-run `./setup.sh`; it rewrites the hook in the correct (unquoted) form.
-- **This Codex build has no hooks support** (older / some Windows CLIs) — use the `notify` fallback: `node scripts/manage-notify.mjs add "$(pwd)"`, then restart Codex. It takes over Codex's `notify` (preserving and chaining your existing one) and speaks on **completion only — no opening cue**.
+- **This Codex build has no hooks support** (older / some Windows CLIs) — use the `notify` fallback: `node scripts/manage-notify.mjs add "$(pwd)"`, then restart Codex. It takes over Codex's `notify` (preserving and chaining your existing one) and speaks the voice marker on **completion only — no opening cue**.
 - **edge-tts not installed** — re-run `./setup.sh` (needs python3 + network).
 
 `setup.sh` ends by running the doctor and playing a test sound — if you hear it, audio works.
 
 ## License
 
-[MIT](LICENSE)
+[Apache License 2.0](LICENSE)

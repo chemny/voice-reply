@@ -164,8 +164,8 @@ the model writes a spoken summary each turn.
   Claude Code -> ~/.claude/CLAUDE.md
   Codex       -> ~/.codex/AGENTS.md
 
-Rule: end every reply with one line — <<voice: status + core info + next step>>
-(target <=40 chars; ear-friendly; no code/paths/secrets).
+Rule: end every final reply with one line — <<voice: status + core info + next step>>
+(target <=60 chars; ear-friendly; no code/paths/secrets).
 Decision-first: if the result needs the user to decide/choose/confirm/answer,
 lead with what they must do, e.g. <<voice: 要你定：现在能不能重启？>>.
 EOF

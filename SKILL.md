@@ -26,8 +26,8 @@ voice-reply/
   scripts/
     speak.mjs          # core: text → Edge TTS mp3 → cross-platform player
     opening.mjs        # shared opening-cue rule (classifier + cached playback)
-    claude-hook.mjs    # Claude Code hook entry (opening + result marker)
-    codex-hook.mjs     # Codex hook entry (opening + result marker, scored fallback)
+    claude-hook.mjs    # Claude Code hook entry (opening + result marker only)
+    codex-hook.mjs     # Codex hook entry (opening + result marker only)
     codex-notify.mjs   # Codex `notify` fallback for builds without hooks (completion-only)
     manage-hooks.mjs   # register/remove hooks in settings.json / hooks.json
     manage-notify.mjs  # wire/unwire the Codex notify fallback in config.toml
@@ -60,7 +60,7 @@ node "$SKILL/scripts/speak.mjs" play --file <file.mp3>   # play an existing clip
 
 ## Automatic hooks
 
-**Claude Code** — `~/.claude/settings.json` registers `claude-hook.mjs` on `UserPromptSubmit` (opening cue) and `Stop` (result reply). On Stop it reads the transcript, extracts the last `<<voice: ...>>` marker the model wrote, and speaks it; if absent it falls back to keyword scoring via `codex-hook.mjs`.
+**Claude Code** — `~/.claude/settings.json` registers `claude-hook.mjs` on `UserPromptSubmit` (opening cue) and `Stop` (result reply). On Stop it reads the transcript, extracts the last `<<voice: ...>>` marker the model wrote, and speaks it. If absent, it stays silent.
 
 **Codex** — `~/.codex/hooks.json` registers `codex-hook.mjs` on the same events. Codex provides `last_assistant_message` directly, so no transcript parsing is needed.
 
@@ -76,7 +76,7 @@ The model is instructed (in the user's global CLAUDE.md / Codex AGENTS.md) to en
 answer something, the marker should lead with what the user must do (e.g.
 `<<voice: 要你定：现在能不能重启？>>`) so they can reply by voice without reading.
 
-The model **targets ≤40 chars** (a guideline for keeping it ear-friendly); the hooks then **hard-cap spoken text at 60 chars** as a safety net — `maxResultChars` in `codex-hook.mjs` / `~/.voice-reply/hooks.json`, and `MARKER_MAX_CHARS` in `claude-hook.mjs`. Both Claude Code (`claude-hook`) and Codex (`codex-hook`) prefer this marker and fall back to keyword scoring only when it is absent.
+The model **targets ≤60 chars** to keep it ear-friendly; the hooks also **hard-cap spoken text at 60 chars** as a safety net — `maxResultChars` in `codex-hook.mjs` / `~/.voice-reply/hooks.json`, and `MARKER_MAX_CHARS` in `claude-hook.mjs`. Both Claude Code (`claude-hook`) and Codex (`codex-hook`) speak only this marker on turn completion; if it is absent, they stay silent.
 
 ## Per-agent voice
 

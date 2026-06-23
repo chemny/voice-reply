@@ -51,7 +51,7 @@ const defaults = {
   maxSummarySentences: 1,
 };
 
-// 显式播报标记 <<voice: ...>>：模型为耳朵写的那句，优先于关键词打分（与 Claude 一致）。
+// 显式播报标记 <<voice: ...>>：模型为耳朵写的那句。Stop 只播这个标记。
 const VOICE_MARKER = /<<\s*voice\s*:\s*([\s\S]*?)>>/gi;
 
 function extractVoiceMarker(text) {
@@ -260,21 +260,9 @@ function main() {
     if (marker) {
       // 模型主动写的播报标记：直接念，最准。音色按标记语种选（与 Claude 一致）。
       log("stop", { source: "marker" });
-      // 不截断：整条标记念完。
-      speak(["text", "--text", marker, "--full"], pickVoice(voices, detectLang(marker)));
-    } else if (config.stopMode === "summary" && input.last_assistant_message) {
-      const lang = detectLang(input.last_assistant_message);
-      const voice = pickVoice(voices, lang);
-      if (lang === "en") {
-        // 英文：buildSummary 是中文调校的（会加中文前缀、删空格），跳过它，播干净的英文固定句。
-        speak(["text", "--text", config.texts.StopEn, "--full"], voice);
-      } else {
-        const prefix = config.texts.StopSummaryPrefix;
-        const summary = buildSummary(input.last_assistant_message, config);
-        speak(["text", "--text", summary ? `${prefix}${summary}` : config.texts.Stop, "--full"], voice);
-      }
+      speak(["text", "--text", truncateText(marker, config.maxResultChars), "--full"], pickVoice(voices, detectLang(marker)));
     } else {
-      speak(["text", "--text", config.texts.Stop, "--full"], pickVoice(voices, "zh"));
+      log("stop", { source: "no-marker-silent" });
     }
     return;
   }
